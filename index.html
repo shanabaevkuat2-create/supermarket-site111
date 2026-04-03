@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magnum Online Clone</title>
+    <style>
+        :root {
+            /* Твоя любимая палитра: глубокий черный и золото */
+            --primary: #FFD700; 
+            --accent: #C5A028;
+            --bg: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --text: #ffffff;
+            --gray: #888;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text);
+            padding-bottom: 100px; /* Место для корзины внизу */
+        }
+
+        /* Шапка */
+        header { 
+            background: var(--card-bg); 
+            padding: 20px; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100;
+            border-bottom: 1px solid var(--accent);
+            text-align: center;
+        }
+        
+        .logo { 
+            font-size: 1.5rem; 
+            font-weight: bold; 
+            color: var(--primary); 
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .search-bar { 
+            width: 90%; 
+            max-width: 500px;
+            padding: 12px; 
+            border-radius: 25px; 
+            border: 1px solid var(--accent); 
+            background: #222;
+            color: white;
+            outline: none;
+        }
+
+        /* Категории */
+        .categories { 
+            display: flex; 
+            overflow-x: auto; 
+            padding: 15px; 
+            gap: 10px; 
+            scrollbar-width: none;
+        }
+        .categories::-webkit-scrollbar { display: none; }
+
+        .cat-btn { 
+            padding: 10px 20px; 
+            border-radius: 20px; 
+            border: 1px solid #333; 
+            background: var(--card-bg); 
+            color: var(--text);
+            cursor: pointer; 
+            white-space: nowrap; 
+            transition: 0.3s;
+        }
+        .cat-btn.active { 
+            background: var(--primary); 
+            color: black; 
+            border-color: var(--primary); 
+            font-weight: bold; 
+        }
+
+        /* Сетка товаров */
+        .products { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+            gap: 15px; 
+            padding: 15px; 
+        }
+        .card { 
+            background: var(--card-bg); 
+            padding: 15px; 
+            border-radius: 15px; 
+            border: 1px solid #222;
+            text-align: center; 
+            transition: transform 0.2s;
+        }
+        .card:active { transform: scale(0.95); }
+        .card-img { font-size: 40px; margin-bottom: 10px; }
+        .card h3 { font-size: 0.9rem; margin: 10px 0; height: 40px; overflow: hidden; }
+        .price { font-size: 1.1rem; font-weight: bold; color: var(--primary); display: block; margin-bottom: 10px; }
+        
+        .add-btn { 
+            background: var(--primary); 
+            border: none; 
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold;
+            color: black;
+        }
+
+        /* Плавающая корзина (Mobile Style) */
+        .cart-summary {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: var(--primary);
+            color: black;
+            padding: 15px 20px;
+            border-radius: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            cursor: pointer;
+            z-index: 200;
+        }
+
+        /* Модальное окно чека */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            color: black;
+            padding: 30px;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 350px;
+            text-align: center;
+        }
+        .kaspi-header { background: #e31e24; color: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">Magnum Clone</div>
+    <input type="text" class="search-bar" placeholder="Найти в магазине..." oninput="setSearch(this.value)">
+</header>
+
+<div id="category-menu" class="categories"></div>
+
+<main id="product-list" class="products"></main>
+
+<div class="cart-summary" id="cart-summary" onclick="checkout()">
+    <span>Корзина (<span id="cart-count">0</span>)</span>
+    <span id="total-price">0 ₸</span>
+</div>
+
+<div id="payment-modal" class="modal">
+    <div class="modal-content">
+        <div class="kaspi-header">Kaspi.kz</div>
+        <p>Сканируйте QR для оплаты</p>
+        <div id="qr-container" style="margin: 20px 0;"></div>
+        <h2 id="final-sum">0 ₸</h2>
+        <button onclick="closePayment()" style="width:100%; padding:12px; border:none; background:#333; color:white; border-radius:10px; cursor:pointer; margin-top:10px;">Отмена</button>
+    </div>
+</div>
+
+<script>
+    // База товаров
+    const products = [
+        { id: 1, cat: 'Молоко', name: 'Молоко Magnum 3.2%', price: 420, img: '🥛' },
+        { id: 2, cat: 'Хлеб', name: 'Хлеб Тостерный', price: 210, img: '🍞' },
+        { id: 3, cat: 'Фрукты', name: 'Яблоки Казахстан', price: 580, img: '🍎' },
+        { id: 4, cat: 'Напитки', name: 'ASU 0.5л', price: 180, img: '💧' },
+        { id: 5, cat: 'Фрукты', name: 'Бананы Эквадор', price: 890, img: '🍌' },
+        { id: 6, cat: 'Снэки', name: 'Lays Сметана/Зелень', price: 650, img: '🥔' },
+    ];
+
+    let cart = JSON.parse(localStorage.getItem('magnum_cart')) || [];
+    let currentCat = 'Все';
+    let searchText = '';
+
+    // Инициализация категорий
+    function renderCats() {
+        const cats = ['Все', ...new Set(products.map(p => p.cat))];
+        const menu = document.getElementById('category-menu');
+        menu.innerHTML = cats.map(c => `
+            <button class="cat-btn ${currentCat === c ? 'active' : ''}" onclick="setCat('${c}')">${c}</button>
+        `).join('');
+    }
+
+    function setCat(c) {
+        currentCat = c;
+        renderCats();
+        render();
+    }
+
+    function setSearch(t) {
+        searchText = t.toLowerCase();
+        render();
+    }
+
+    // Отрисовка товаров
+    function render() {
+        const list = document.getElementById('product-list');
+        const filtered = products.filter(p => {
+            const mCat = currentCat === 'Все' || p.cat === currentCat;
+            const mSearch = p.name.toLowerCase().includes(searchText);
+            return mCat && mSearch;
+        });
+
+        list.innerHTML = filtered.map(p => `
+            <div class="card">
+                <div class="card-img">${p.img}</div>
+                <h3>${p.name}</h3>
+                <span class="price">${p.price} ₸</span>
+                <button class="add-btn" onclick="add('${p.name}', ${p.price})">Добавить</button>
+            </div>
+        `).join('');
+    }
+
+    // Корзина
+    function add(name, price) {
+        cart.push({ id: Date.now(), name, price });
+        updateCart();
+    }
+
+    function updateCart() {
+        localStorage.setItem('magnum_cart', JSON.stringify(cart));
+        const total = cart.reduce((sum, item) => sum + item.price, 0);
+        document.getElementById('cart-count').innerText = cart.length;
+        document.getElementById('total-price').innerText = total + ' ₸';
+        
+        // Показываем/скрываем кнопку корзины
+        document.getElementById('cart-summary').style.display = cart.length > 0 ? 'flex' : 'none';
+    }
+
+    // Оплата
+    function checkout() {
+        const total = cart.reduce((sum, item) => sum + item.price, 0);
+        document.getElementById('final-sum').innerText = total + ' ₸';
+        
+        // Генерация QR
+        const qrUrl = https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=MagnumPay-${total};
+        document.getElementById('qr-container').innerHTML = <img src="${qrUrl}" alt="QR">;
+        
+        document.getElementById('payment-modal').style.display = 'flex';
+    }
+
+    function closePayment() {
+        document.getElementById('payment-modal').style.display = 'none';
+        // Если хочешь очищать корзину после "оплаты", раскомментируй ниже:
+        // cart = []; updateCart();
+    }
+
+    // Запуск приложения
+    renderCats();
+    render();
+    updateCart();
+</script>
+
+</body>
+</html>
